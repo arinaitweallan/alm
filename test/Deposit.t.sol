@@ -274,4 +274,26 @@ contract DepositTest is Test {
         depositContract.withdraw(tokenId2, lp, data);
         vm.stopPrank();
     }
+
+    // change pool status
+    function test_ZeroAddressPoolReverts() public {
+        // non owner reverts
+        vm.expectRevert();
+        depositContract.changePoolStatus(address(0), true);
+
+        // zero address pool reverts
+        vm.prank(owner);
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        depositContract.changePoolStatus(address(0), true);
+
+        // add already added pool reverts
+        vm.prank(owner);
+        vm.expectRevert(Errors.OldState.selector);
+        depositContract.changePoolStatus(UNISWAP_DAI_USDT_01, true);
+
+        // adding a new pool works
+        vm.prank(owner);
+        depositContract.changePoolStatus(UNISWAP_DAI_USDC, true);
+        assertEq(depositContract.approvedPool(UNISWAP_DAI_USDC), true);
+    }
 }
