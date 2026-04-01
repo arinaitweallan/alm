@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Validation} from "src/helpers/Validation.sol";
+import {IDeposit} from "src/interfaces/IDeposit.sol";
 
 // external imports
 import {INonfungiblePositionManager} from "lib/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
@@ -9,7 +10,7 @@ import {IERC721Receiver} from "lib/openzeppelin-contracts/contracts/token/ERC721
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IUniswapV3Factory} from "lib/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
-contract Deposit is IERC721Receiver, Ownable {
+contract Deposit is IDeposit, IERC721Receiver, Ownable {
     // events
     event PoolStatusChanged(address indexed pool, bool status);
     event NFTDeposit(address indexed receiver, uint256 indexed tokenId);
@@ -36,9 +37,15 @@ contract Deposit is IERC721Receiver, Ownable {
     /// @dev function to let the user deposit their NonFungiblePositionManager NFT
     /// @param tokenId tokenId of the nft to deposit
     /// @param receiver address to receiver ownership of the nft
-    function deposit(uint256 tokenId, address receiver) external {
+    /// @param pool address is computed off-chain
+    function deposit(uint256 tokenId, address receiver, address pool) external {
         // checks
         Validation.isZeroAddress(receiver);
+        // as if we should allow nfts of only one specific pool
+        // say weth/usdc 3000 pool, only these nfts, how can we verify this
+        bool _approved = _isApprovedPool(pool);
+        Validation.verifyApprovedPool(_approved);
+
         // effects
         NFPM.safeTransferFrom(msg.sender, address(this), tokenId, abi.encode(receiver));
         // interactions
@@ -62,16 +69,11 @@ contract Deposit is IERC721Receiver, Ownable {
         // verify sender is NFPM
         Validation.verifySender(NFPM, from);
 
-        // as if we should allow nfts of only one specific pool
-        // say weth/usdc 3000 pool, only these nfts, how can we verify this
-        (,, address token0, address token1, uint24 fee,,,,,,,) = NFPM.positions(tokenId);
-        // check if pool is approved
-        address pool = FACTORY.getPool(token0, token1, fee);
-        bool _approved = _isApprovedPool(pool);
-        Validation.verifyApprovedPool(_approved);
-
         // decode owner
-        address recipient = abi.decode(data, (address));
+        address recipient;
+        if (data.length != 0) {
+            recipient = abi.decode(data, (address));
+        }
 
         // differentiate if its a direct deposit or user invoked deposit function on this contract
 
@@ -83,7 +85,6 @@ contract Deposit is IERC721Receiver, Ownable {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    // internal functions
     function _addTokenToOwner(address to, uint256 tokenId) internal {
         ownedTokensIndex[tokenId] = ownedTokens[to].length;
 
