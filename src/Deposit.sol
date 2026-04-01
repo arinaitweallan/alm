@@ -11,10 +11,6 @@ import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IUniswapV3Factory} from "lib/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
 contract Deposit is IDeposit, IERC721Receiver, Ownable {
-    // events
-    event PoolStatusChanged(address indexed pool, bool status);
-    event NFTDeposit(address indexed receiver, uint256 indexed tokenId);
-
     INonfungiblePositionManager public immutable NFPM;
     IUniswapV3Factory public immutable FACTORY;
 
@@ -27,11 +23,11 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
     mapping(address => bool) public approvedPool;
 
     // deployer is the owner of the contract
-    constructor(address _nonfungiblePositionManager, address _factory) Ownable(_msgSender()) {
+    constructor(address _nonfungiblePositionManager, address _factory) Ownable(msg.sender) {
         Validation.isZeroAddress(_nonfungiblePositionManager);
         Validation.isZeroAddress(_factory);
         NFPM = INonfungiblePositionManager(_nonfungiblePositionManager);
-        FACTORY = IUniswapV3Factory(_factory);
+        FACTORY = IUniswapV3Factory(_nonfungiblePositionManager.factory());
     }
 
     /// @dev function to let the user deposit their NonFungiblePositionManager NFT
@@ -53,7 +49,20 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
 
     /// @dev function to let the user withdraw their NonFungiblePositionManager NFT
     /// @param tokenId tokenId of the nft to withdraw
-    function withdraw(uint256 tokenId) external {}
+    /// @param recipient address to receive the nft
+    /// @param data data the receiver might need to pass
+    function withdraw(uint256 tokenId, address recipient, bytes calldata data) external {
+        // check owner
+        address _sender = _msgSender();
+        require(_sender == tokenOwner[tokenId], UnAuthorized());
+
+        // update ownership state
+        _removeTokenFromOwner(_sender, tokenId);
+
+        // transfer nft to owner
+        NFPM.safeTransferFrom(address(this), recipient, tokenId, data);
+        emit NFTWithdraw(_sender, tokenId);
+    }
 
     /// @dev UniswapV3 onERC721Received to trigger on receiving the LP nft
     function onERC721Received(

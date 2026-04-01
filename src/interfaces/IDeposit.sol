@@ -2,19 +2,10 @@
 pragma solidity 0.8.30;
 
 interface IDeposit {
-    // struct to avois stack too deep error in deposit function
-    struct PositionParams {
-        uint96 nonce;
-        address operator;
-        address token0;
-        address token1;
-        uint24 fee;
-        int24 tickLower;
-        int24 tickUpper;
-        uint128 liquidity;
-        uint256 feeGrowthInside0LastX128;
-        uint256 feeGrowthInside1LastX128;
-        uint128 tokensOwed0;
-        uint128 tokensOwed1;
-    }
+    error UnAuthorized();
+
+    // events
+    event PoolStatusChanged(address indexed pool, bool status);
+    event NFTDeposit(address indexed receiver, uint256 indexed tokenId);
+    event NFTWithdraw(address indexed owner, uint256 tokenId);
 }
