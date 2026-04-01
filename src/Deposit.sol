@@ -12,7 +12,7 @@ import {IUniswapV3Factory} from "lib/v3-core/contracts/interfaces/IUniswapV3Fact
 contract Deposit is IERC721Receiver, Ownable {
     // events
     event PoolStatusChanged(address indexed pool, bool status);
-    event Deposit(address indexed receiver, uint256 indexed tokenId);
+    event NFTDeposit(address indexed receiver, uint256 indexed tokenId);
 
     INonfungiblePositionManager public immutable NFPM;
     IUniswapV3Factory public immutable FACTORY;
@@ -60,7 +60,7 @@ contract Deposit is IERC721Receiver, Ownable {
         returns (bytes4)
     {
         // verify sender is NFPM
-        Validation.verifySenderIsNFPM(NFPM, from);
+        Validation.verifySender(NFPM, from);
 
         // as if we should allow nfts of only one specific pool
         // say weth/usdc 3000 pool, only these nfts, how can we verify this
@@ -70,11 +70,14 @@ contract Deposit is IERC721Receiver, Ownable {
         bool _approved = _isApprovedPool(pool);
         Validation.verifyApprovedPool(_approved);
 
+        // decode owner
+        address recipient = abi.decode(data, (address));
+
         // differentiate if its a direct deposit or user invoked deposit function on this contract
 
         // add token to owner in either of the cases
-        _addTokenToOwner(from, tokenId);
-        emit Deposit(receiver, tokenId);
+        _addTokenToOwner(recipient, tokenId);
+        emit NFTDeposit(recipient, tokenId);
 
         // should we mint them ownership
         return IERC721Receiver.onERC721Received.selector;

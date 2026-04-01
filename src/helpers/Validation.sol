@@ -9,17 +9,17 @@ library Validation {
         require(account != address(0), Errors.ZeroAddress());
     }
 
-    function verifySenderIsNFPM(INonfungiblePositionManager nfpm, address from) internal {
+    function verifySender(INonfungiblePositionManager nfpm, address from) internal view {
         if (msg.sender != address(nfpm) || from == address(this)) {
             revert Errors.IncorrectSource();
         }
     }
 
-    function isPreviousState(bool oldState, bool newState) internal view {
+    function isPreviousState(bool oldState, bool newState) internal pure {
         require(oldState != newState, Errors.OldState());
     }
 
-    function verifyApprovedPool(bool approved) internal view {
+    function verifyApprovedPool(bool approved) internal pure {
         require(approved, Errors.PoolNotApproved());
     }
 }
