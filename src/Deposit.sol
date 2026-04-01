@@ -38,7 +38,6 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
         Validation.isZeroAddress(receiver);
         // as if we should allow nfts of only one specific pool
         // say weth/usdc 3000 pool, only these nfts, how can we verify this
-        // @audit: direct deposits can deposit nft for unapproved pool addresses
         bool _approved = _isApprovedPool(pool);
         Validation.verifyApprovedPool(_approved);
 
@@ -60,13 +59,14 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
         _removeTokenFromOwner(_sender, tokenId);
 
         // transfer nft to owner
+        // q what if the recipient is a contract?
         NFPM.safeTransferFrom(address(this), recipient, tokenId, data);
         emit NFTWithdraw(_sender, tokenId);
     }
 
     /// @dev UniswapV3 onERC721Received to trigger on receiving the LP nft
     function onERC721Received(
-        address operator
+        address operator,
         address from,
         uint256 tokenId,
         bytes calldata data
@@ -78,13 +78,13 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
         Validation.verifySender(NFPM, from);
 
         // differentiate if its a direct deposit or user invoked deposit function on this contract
-        // strictly do not allow direct transfers
+        // @note: strictly do not allow direct transfers
         Validation.noDirectTransfers(operator);
 
         // decode owner
         address recipient = Validation.decodeRecipient(data);
 
-        // add token to owner in either of the cases
+        // add token to owner
         _addTokenToOwner(recipient, tokenId);
         emit NFTDeposit(recipient, tokenId);
 

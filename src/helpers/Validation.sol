@@ -31,7 +31,7 @@ library Validation {
         }
     }
 
-    function noDirectTransfers(address operator) internal pure {
+    function noDirectTransfers(address operator) internal view {
         require(operator == address(this), Errors.DirectTransferNotAllowed());
     }
 }

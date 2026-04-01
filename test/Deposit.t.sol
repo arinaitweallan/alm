@@ -171,7 +171,7 @@ contract DepositTest is Test {
         bytes memory data = "";
 
         vm.prank(lp);
-        vm.expectRevert(Errors.RecipientNotSet.selector);
+        vm.expectRevert(Errors.DirectTransferNotAllowed.selector);
         INonfungiblePositionManager(nfpm).safeTransferFrom(lp, address(depositContract), tokenId, data);
     }
 }
