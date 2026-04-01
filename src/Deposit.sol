@@ -15,19 +15,18 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
     IUniswapV3Factory public immutable FACTORY;
 
     // token ownership data strucuture
-    mapping(address => uint256[]) private ownedTokens; // Mapping from owner address to list of owned token IDs
-    mapping(uint256 => uint256) private ownedTokensIndex; // Mapping from token ID to index of the owner tokens list (for removal without loop)
-    mapping(uint256 => address) private tokenOwner;
+    mapping(address => uint256[]) public ownedTokens; // Mapping from owner address to list of owned token IDs
+    mapping(uint256 => uint256) public ownedTokensIndex; // Mapping from token ID to index of the owner tokens list (for removal without loop)
+    mapping(uint256 => address) public tokenOwner;
 
     // approved pools mapping
     mapping(address => bool) public approvedPool;
 
     // deployer is the owner of the contract
-    constructor(address _nonfungiblePositionManager, address _factory) Ownable(msg.sender) {
+    constructor(address _nonfungiblePositionManager) Ownable(msg.sender) {
         Validation.isZeroAddress(_nonfungiblePositionManager);
-        Validation.isZeroAddress(_factory);
         NFPM = INonfungiblePositionManager(_nonfungiblePositionManager);
-        FACTORY = IUniswapV3Factory(_nonfungiblePositionManager.factory());
+        FACTORY = IUniswapV3Factory(INonfungiblePositionManager(_nonfungiblePositionManager).factory());
     }
 
     /// @dev function to let the user deposit their NonFungiblePositionManager NFT
@@ -39,6 +38,7 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
         Validation.isZeroAddress(receiver);
         // as if we should allow nfts of only one specific pool
         // say weth/usdc 3000 pool, only these nfts, how can we verify this
+        // @audit: direct deposits can deposit nft for unapproved pool addresses
         bool _approved = _isApprovedPool(pool);
         Validation.verifyApprovedPool(_approved);
 
@@ -79,10 +79,7 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
         Validation.verifySender(NFPM, from);
 
         // decode owner
-        address recipient;
-        if (data.length != 0) {
-            recipient = abi.decode(data, (address));
-        }
+        address recipient = Validation.decodeRecipient(data);
 
         // differentiate if its a direct deposit or user invoked deposit function on this contract
 

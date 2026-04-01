@@ -10,4 +10,6 @@ library Errors {
     error OldState();
     // not approved pool
     error PoolNotApproved();
+    // recipient not encoded
+    error RecipientNotSet();
 }

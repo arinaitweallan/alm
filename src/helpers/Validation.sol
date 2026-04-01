@@ -22,4 +22,12 @@ library Validation {
     function verifyApprovedPool(bool approved) internal pure {
         require(approved, Errors.PoolNotApproved());
     }
+
+    function decodeRecipient(bytes memory data) internal pure returns (address recipient) {
+        if (data.length != 0) {
+            recipient = abi.decode(data, (address));
+        } else {
+            revert Errors.RecipientNotSet();
+        }
+    }
 }

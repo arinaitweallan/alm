@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 interface IDeposit {
     error UnAuthorized();
+    error RecipientNotSet();
 
     // events
     event PoolStatusChanged(address indexed pool, bool status);
