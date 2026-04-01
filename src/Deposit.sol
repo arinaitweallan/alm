@@ -9,8 +9,9 @@ import {INonfungiblePositionManager} from "lib/v3-periphery/contracts/interfaces
 import {IERC721Receiver} from "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IUniswapV3Factory} from "lib/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import {Pausable} from "lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
 
-contract Deposit is IDeposit, IERC721Receiver, Ownable {
+contract Deposit is IDeposit, IERC721Receiver, Ownable, Pausable {
     INonfungiblePositionManager public immutable NFPM;
     IUniswapV3Factory public immutable FACTORY;
 
@@ -33,7 +34,7 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
     /// @param tokenId tokenId of the nft to deposit
     /// @param receiver address to receiver ownership of the nft
     /// @param pool address is computed off-chain
-    function deposit(uint256 tokenId, address receiver, address pool) external {
+    function deposit(uint256 tokenId, address receiver, address pool) external whenNotPaused {
         // checks
         Validation.isZeroAddress(receiver);
         // as if we should allow nfts of only one specific pool
@@ -50,7 +51,7 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
     /// @param tokenId tokenId of the nft to withdraw
     /// @param recipient address to receive the nft
     /// @param data data the receiver might need to pass
-    function withdraw(uint256 tokenId, address recipient, bytes calldata data) external {
+    function withdraw(uint256 tokenId, address recipient, bytes calldata data) external whenNotPaused {
         // check owner
         address _sender = _msgSender();
         require(_sender == tokenOwner[tokenId], UnAuthorized());
@@ -65,12 +66,7 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
     }
 
     /// @dev UniswapV3 onERC721Received to trigger on receiving the LP nft
-    function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    )
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         external
         returns (bytes4)
     {
@@ -130,5 +126,13 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
 
         approvedPool[pool] = approved;
         emit PoolStatusChanged(pool, approved);
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

@@ -126,7 +126,7 @@ contract DepositTest is Test {
 
     function testNotApprovedPoolAddressReverts() public {
         vm.expectRevert(Errors.PoolNotApproved.selector);
-        depositContract.deposit(1000, address(123), UNISWAP_ETH_USDC);
+        depositContract.deposit(1000, address(123), UNISWAP_DAI_USDC);
     }
 
     function testUserNftDirectTransfer() public {
@@ -136,6 +136,7 @@ contract DepositTest is Test {
         bytes memory data = abi.encode(lp);
 
         vm.prank(lp);
+        vm.expectRevert(Errors.DirectTransferNotAllowed.selector);
         INonfungiblePositionManager(nfpm).safeTransferFrom(lp, address(depositContract), tokenId, data);
     }
 
@@ -151,7 +152,7 @@ contract DepositTest is Test {
 
         // accessing a standard mapping: tokenOwner(uint256)
         address actualOwner = depositContract.tokenOwner(tokenId);
-        assertEq(actualOwner, lp, "foken owner should be the lp");
+        assertEq(actualOwner, lp, "token owner should be the lp");
 
         // accessing a mapping to an array: ownedTokens(address, uint256)
         // public mapping getters for arrays require an index as the second argument.
@@ -173,5 +174,104 @@ contract DepositTest is Test {
         vm.prank(lp);
         vm.expectRevert(Errors.DirectTransferNotAllowed.selector);
         INonfungiblePositionManager(nfpm).safeTransferFrom(lp, address(depositContract), tokenId, data);
+    }
+
+    // withdraw
+    function testNonOwnerWithdrawReverts(address nonOwner) public {
+        vm.assume(nonOwner != address(0) && nonOwner != owner);
+
+        // lp has tokens from setUp
+        _dealTokens(lp, dai, usdt, 20_000e18, 20_000e6);
+        uint256 tokenId = _mintNft(lp, dai, usdt, 20_000e18, 20_000e6, -1, 1, 100);
+
+        vm.startPrank(lp);
+        INonfungiblePositionManager(nfpm).approve(address(depositContract), tokenId);
+        depositContract.deposit(tokenId, lp, address(UNISWAP_DAI_USDT_01));
+        vm.stopPrank();
+
+        // non owner withdraw reverts
+        bytes memory data = "";
+        vm.prank(nonOwner);
+        vm.expectRevert(IDeposit.UnAuthorized.selector);
+        depositContract.withdraw(tokenId, nonOwner, data);
+
+        // owner now withdraws
+        bytes memory _data = "";
+        vm.prank(lp);
+        depositContract.withdraw(tokenId, lp, _data);
+
+        // assert the state changes
+        // accessing a standard mapping: tokenOwner(uint256)
+        address actualOwner = depositContract.tokenOwner(tokenId);
+        assertEq(actualOwner, address(0), "token owner should be address(0)");
+
+        // accessing a mapping to an array: ownedTokens(address, uint256)
+        // public mapping getters for arrays require an index as the second argument.
+        // to check the first token in the list for the LP:
+        vm.expectRevert();
+        uint256 firstTokenId = depositContract.ownedTokens(lp, 0);
+        assertEq(firstTokenId, 0, "first token in list should be 0");
+
+        // accessing a standard mapping: ownedTokensIndex(uint256)
+        uint256 index = depositContract.ownedTokensIndex(tokenId);
+        assertEq(index, 0, "index is zero");
+
+        // assert new owner
+        assertEq(INonfungiblePositionManager(nfpm).ownerOf(tokenId), lp);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              PAUSABILITY
+    //////////////////////////////////////////////////////////////*/
+    function testNonOwnerPauseAndUnpauseReverts(address nonOwner) public {
+        vm.assume(nonOwner != address(0) && nonOwner != owner);
+
+        vm.prank(nonOwner);
+        vm.expectRevert();
+        depositContract.pause();
+
+        vm.prank(nonOwner);
+        vm.expectRevert();
+        depositContract.unpause();
+    }
+
+    function testOwnerPauseAndUnpausePasses() public {
+        vm.prank(owner);
+        depositContract.pause();
+
+        vm.prank(owner);
+        depositContract.unpause();
+    }
+
+    function testPausabilityDuringDepositsAndWithdraw() public {
+        // lp deposits
+        _dealTokens(lp, dai, usdt, 20_000e18, 20_000e6);
+        uint256 tokenId = _mintNft(lp, dai, usdt, 20_000e18, 20_000e6, -1, 1, 100);
+
+        vm.startPrank(lp);
+        INonfungiblePositionManager(nfpm).approve(address(depositContract), tokenId);
+        depositContract.deposit(tokenId, lp, address(UNISWAP_DAI_USDT_01));
+        vm.stopPrank();
+
+        // owner pauses
+        vm.prank(owner);
+        depositContract.pause();
+
+        // lp tries to deposit
+        _dealTokens(lp, dai, usdt, 20_000e18, 20_000e6);
+        uint256 tokenId2 = _mintNft(lp, dai, usdt, 20_000e18, 20_000e6, -1, 1, 100);
+
+        vm.startPrank(lp);
+        INonfungiblePositionManager(nfpm).approve(address(depositContract), tokenId2);
+        vm.expectRevert();
+        depositContract.deposit(tokenId2, lp, address(UNISWAP_DAI_USDT_01));
+        vm.stopPrank();
+
+        // lp tries to with when paused
+        bytes memory data = "";
+        vm.startPrank(lp);
+        vm.expectRevert();
+        depositContract.withdraw(tokenId2, lp, data);
+        vm.stopPrank();
     }
 }
