@@ -12,4 +12,6 @@ library Errors {
     error PoolNotApproved();
     // recipient not encoded
     error RecipientNotSet();
+    // no direct transfers
+    error DirectTransferNotAllowed();
 }

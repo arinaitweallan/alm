@@ -66,8 +66,7 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
 
     /// @dev UniswapV3 onERC721Received to trigger on receiving the LP nft
     function onERC721Received(
-        address,
-        /*operator*/
+        address operator
         address from,
         uint256 tokenId,
         bytes calldata data
@@ -78,10 +77,12 @@ contract Deposit is IDeposit, IERC721Receiver, Ownable {
         // verify sender is NFPM
         Validation.verifySender(NFPM, from);
 
+        // differentiate if its a direct deposit or user invoked deposit function on this contract
+        // strictly do not allow direct transfers
+        Validation.noDirectTransfers(operator);
+
         // decode owner
         address recipient = Validation.decodeRecipient(data);
-
-        // differentiate if its a direct deposit or user invoked deposit function on this contract
 
         // add token to owner in either of the cases
         _addTokenToOwner(recipient, tokenId);

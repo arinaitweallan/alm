@@ -30,4 +30,8 @@ library Validation {
             revert Errors.RecipientNotSet();
         }
     }
+
+    function noDirectTransfers(address operator) internal pure {
+        require(operator == address(this), Errors.DirectTransferNotAllowed());
+    }
 }
