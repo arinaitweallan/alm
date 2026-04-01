@@ -1,23 +1,36 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity ^0.8.0;
 
 import {Validation} from "src/helpers/Validation.sol";
 
 // external imports
 import {INonfungiblePositionManager} from "lib/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import {IERC721Receiver} from "lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
+import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {IUniswapV3Factory} from "lib/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
-contract Deposit is IERC721Receiver {
+contract Deposit is IERC721Receiver, Ownable {
+    // events
+    event PoolStatusChanged(address indexed pool, bool status);
+    event Deposit(address indexed receiver, uint256 indexed tokenId);
+
     INonfungiblePositionManager public immutable NFPM;
+    IUniswapV3Factory public immutable FACTORY;
 
     // token ownership data strucuture
     mapping(address => uint256[]) private ownedTokens; // Mapping from owner address to list of owned token IDs
     mapping(uint256 => uint256) private ownedTokensIndex; // Mapping from token ID to index of the owner tokens list (for removal without loop)
-    mapping(address => uint256) private tokenOwner;
+    mapping(uint256 => address) private tokenOwner;
 
-    constructor(address _nonfungiblePositionManager) {
+    // approved pools mapping
+    mapping(address => bool) public approvedPool;
+
+    // deployer is the owner of the contract
+    constructor(address _nonfungiblePositionManager, address _factory) Ownable(_msgSender()) {
         Validation.isZeroAddress(_nonfungiblePositionManager);
+        Validation.isZeroAddress(_factory);
         NFPM = INonfungiblePositionManager(_nonfungiblePositionManager);
+        FACTORY = IUniswapV3Factory(_factory);
     }
 
     /// @dev function to let the user deposit their NonFungiblePositionManager NFT
@@ -36,17 +49,35 @@ contract Deposit is IERC721Receiver {
     function withdraw(uint256 tokenId) external {}
 
     /// @dev UniswapV3 onERC721Received to trigger on receiving the LP nft
-    function onERC721Received(address /*operator*/, address from, uint256 tokenId, bytes calldata data)
+    function onERC721Received(
+        address,
+        /*operator*/
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    )
         external
         returns (bytes4)
     {
         // verify sender is NFPM
         Validation.verifySenderIsNFPM(NFPM, from);
 
+        // as if we should allow nfts of only one specific pool
+        // say weth/usdc 3000 pool, only these nfts, how can we verify this
+        (,, address token0, address token1, uint24 fee,,,,,,,) = NFPM.positions(tokenId);
+        // check if pool is approved
+        address pool = FACTORY.getPool(token0, token1, fee);
+        bool _approved = _isApprovedPool(pool);
+        Validation.verifyApprovedPool(_approved);
+
         // differentiate if its a direct deposit or user invoked deposit function on this contract
 
         // add token to owner in either of the cases
         _addTokenToOwner(from, tokenId);
+        emit Deposit(receiver, tokenId);
+
+        // should we mint them ownership
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     // internal functions
@@ -71,5 +102,22 @@ contract Deposit is IERC721Receiver {
         ownedTokens[from].pop(); // remove from token owner
         delete ownedTokensIndex[tokenId]; // owned tokens index deleted
         delete tokenOwner[tokenId]; // remove the token from the token owner mapping
+    }
+
+    // getters
+    function _isApprovedPool(address pool) internal view returns (bool) {
+        return approvedPool[pool];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 ADMIN
+    //////////////////////////////////////////////////////////////*/
+    function changePoolStatus(address pool, bool approved) external onlyOwner {
+        Validation.isZeroAddress(pool);
+        bool _approved = approvedPool[pool];
+        Validation.isPreviousState(_approved, approved);
+
+        approvedPool[pool] = approved;
+        emit PoolStatusChanged(pool, approved);
     }
 }

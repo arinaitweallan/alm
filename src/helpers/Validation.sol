@@ -11,7 +11,15 @@ library Validation {
 
     function verifySenderIsNFPM(INonfungiblePositionManager nfpm, address from) internal {
         if (msg.sender != address(nfpm) || from == address(this)) {
-            revert IncorrectSource();
+            revert Errors.IncorrectSource();
         }
+    }
+
+    function isPreviousState(bool oldState, bool newState) internal view {
+        require(oldState != newState, Errors.OldState());
+    }
+
+    function verifyApprovedPool(bool approved) internal view {
+        require(approved, Errors.PoolNotApproved());
     }
 }

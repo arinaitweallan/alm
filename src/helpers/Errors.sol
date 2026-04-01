@@ -6,4 +6,8 @@ library Errors {
     error ZeroAddress();
     // sender not uniswap
     error IncorrectSource();
+    // old state error
+    error OldState();
+    // not approved pool
+    error PoolNotApproved();
 }
