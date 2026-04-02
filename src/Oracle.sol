@@ -5,6 +5,9 @@ import {AggregatorV3Interface} from "lib/AggregatorV3Interface.sol";
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IAaveOracle} from "lib/IAaveOracle.sol";
 
+// internal imports
+import {Validation} from "src/helpers/Validation.sol";
+
 contract Oracle is Ownable {
     AggregatorV3Interface public feed;
     AggregatorV3Interface public sequencerUptimeFeed;
@@ -12,22 +15,26 @@ contract Oracle is Ownable {
 
     // Uniswap TWAP
 
+    struct FeedConfig {
+        uint256 maxFeedAge;
+    }
+
     constructor(IAaveOracle _aaveOracle, AggregatorV3Interface _feed) Ownable(msg.sender) {
         aaveOracle = _aaveOracle;
         feed = _feed;
     }
 
     function getChainlinkPrice() external view returns (uint256) {
-        (, int256 answer,, uint256 updatedAt,) = feedConfig.feed.latestRoundData();
-        if (updatedAt + feedConfig.maxFeedAge < block.timestamp || answer <= 0) {
-            // revert ChainlinkPriceError();
-        }
-        return answer;
+        // (, int256 answer,, uint256 updatedAt,) = feed.latestRoundData();
+        // if (updatedAt + maxFeedAge < block.timestamp || answer <= 0) {
+        //     // revert ChainlinkPriceError();
+        // }
+        // return answer;
     }
 
     function getAavePrice(address token) public view returns (uint256 price) {
         price = aaveOracle.getAssetPrice(token);
-        // if (price == 0) revert OracleError();
+        Validation.isPriceZero(price);
     }
 
     // admin

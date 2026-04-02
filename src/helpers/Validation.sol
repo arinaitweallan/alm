@@ -34,4 +34,11 @@ library Validation {
     function noDirectTransfers(address operator) internal view {
         require(operator == address(this), Errors.DirectTransferNotAllowed());
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 ORACLE
+    //////////////////////////////////////////////////////////////*/
+    function isPriceZero(uint price) internal pure {
+        require(price != 0, Errors.OracleError());
+    }
 }

@@ -14,4 +14,6 @@ library Errors {
     error RecipientNotSet();
     // no direct transfers
     error DirectTransferNotAllowed();
+    // oracle error
+    error OracleError();
 }
