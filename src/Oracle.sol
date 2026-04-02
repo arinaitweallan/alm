@@ -10,12 +10,20 @@ contract Oracle is Ownable {
     AggregatorV3Interface public sequencerUptimeFeed;
     IAaveOracle public aaveOracle;
 
+    // Uniswap TWAP
+
     constructor(IAaveOracle _aaveOracle, AggregatorV3Interface _feed) Ownable(msg.sender) {
         aaveOracle = _aaveOracle;
         feed = _feed;
     }
 
-    function getChainlinkPrice() external {}
+    function getChainlinkPrice() external view returns (uint256) {
+        (, int256 answer,, uint256 updatedAt,) = feedConfig.feed.latestRoundData();
+        if (updatedAt + feedConfig.maxFeedAge < block.timestamp || answer <= 0) {
+            // revert ChainlinkPriceError();
+        }
+        return answer;
+    }
 
     function getAavePrice(address token) public view returns (uint256 price) {
         price = aaveOracle.getAssetPrice(token);
