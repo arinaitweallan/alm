@@ -38,7 +38,7 @@ library Validation {
     /*//////////////////////////////////////////////////////////////
                                  ORACLE
     //////////////////////////////////////////////////////////////*/
-    function isPriceZero(uint price) internal pure {
+    function isPriceZero(uint256 price) internal pure {
         require(price != 0, Errors.OracleError());
     }
 }
