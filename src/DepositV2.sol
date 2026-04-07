@@ -21,16 +21,23 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
 
     uint256 public constant NULL = 0;
 
-    constructor(IUniswapV3Pool _pool, IUniswapV3Factory _factory) ERC20("ALM-SHARES", "ALMS") Ownable(msg.sender) {
-        POOL = _pool;
-        FACTORY = _factory;
-    }
+    // fees handling
+    uint256 public globalFeeIndex0; // cumulative fees per share for token0
+    uint256 public globalFeeIndex1; // cumulative fees per share for token1
+
+    mapping(address => uint256) public userFeeIndex0;
+    mapping(address => uint256) public userFeeIndex1;
 
     // allowed pair
     mapping(address => bool) internal allowedPool;
 
     // tick range mapping
     mapping(address => TickRange) internal poolTickRange;
+
+    constructor(IUniswapV3Pool _pool, IUniswapV3Factory _factory) ERC20("ALM-SHARES", "ALMS") Ownable(msg.sender) {
+        POOL = _pool;
+        FACTORY = _factory;
+    }
 
     /// @notice user deposits a pair of allowed tokens to the contract to be used to provide UniswapV3 liquidity
     function depositTokens(DepositParams memory params) external {
@@ -67,6 +74,8 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         (uint128 liquidity, uint256 amountUsed0, uint256 amountUsed1,) = addLiquidity(addParams);
 
         // @to-do: handle slippage
+
+        // @reminder: next to do
         // @to-do: handle fees
 
         // user accounting (mint shares eqaul to liquidity minted)
@@ -98,24 +107,24 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
 }
 
 // (uint160 sqrtRatioX96,,,,,,) = POOL.slot0();
-        // uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
-        // uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
+// uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
+// uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
 
-        // uint128 liquidityToMint = LiquidityAmounts.getLiquidityForAmounts(
-        //     sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, params.amount0, params.amount1
-        // );
+// uint128 liquidityToMint = LiquidityAmounts.getLiquidityForAmounts(
+//     sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, params.amount0, params.amount1
+// );
 // require all amounts are used
-        // q what data should we pass here
-        // (uint256 amount0, uint256 amount1) =
-        //     POOL.mint(params.recipient, _tickLower, _tickUpper, liquidityToMint, abi.encode(msg.sender));
-        // require(amount0 == params.amount0 && amount1 == params.amount1, AmountsNotFullyUsed());
+// q what data should we pass here
+// (uint256 amount0, uint256 amount1) =
+//     POOL.mint(params.recipient, _tickLower, _tickUpper, liquidityToMint, abi.encode(msg.sender));
+// require(amount0 == params.amount0 && amount1 == params.amount1, AmountsNotFullyUsed());
 
-        // @to-do: handle callback
+// @to-do: handle callback
 
 // refund unused tokens to the user
-        // if (params.amount0 > amountUsed0) {
-        //     TransferHelper.safeTransfer(params.token0, msg.sender, params.amount0 - amountUsed0);
-        // }
-        // if (params.amount1 > amountUsed1) {
-        //     TransferHelper.safeTransfer(params.token1, msg.sender, params.amount1 - amountUsed1);
-        // }
+// if (params.amount0 > amountUsed0) {
+//     TransferHelper.safeTransfer(params.token0, msg.sender, params.amount0 - amountUsed0);
+// }
+// if (params.amount1 > amountUsed1) {
+//     TransferHelper.safeTransfer(params.token1, msg.sender, params.amount1 - amountUsed1);
+// }
