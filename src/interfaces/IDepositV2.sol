@@ -3,11 +3,13 @@ pragma solidity 0.8.30;
 
 interface IDepositV2 {
     event PoolAdded(address indexed pool);
+    event Deposit(address indexed recipient, address indexed token0, address indexed token1);
 
     // errors
     error PoolNotAllowed();
     error InvalidAmount();
     error InvalidAddress();
+    error AmountsNotFullyUsed();
 
     struct TickRange {
         int24 tickLower;
