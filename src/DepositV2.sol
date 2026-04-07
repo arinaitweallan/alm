@@ -20,6 +20,7 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
     IUniswapV3Factory public immutable FACTORY;
 
     uint256 public constant NULL = 0;
+    uint128 public constant MAX_FEES = type(uint128).max;
 
     // fees handling
     uint256 public globalFeeIndex0; // cumulative fees per share for token0
@@ -48,6 +49,9 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         // restrict zero amounts and address(0)
         require(params.amount0 != NULL || params.amount1 != NULL, InvalidAmount());
         require(params.recipient != address(0), InvalidAddress());
+
+        // harvest
+        harvest(_pool);
 
         // determining the liquidity to mint for the tokens
         // @to-do: means we need a current range of ticks to mint within
@@ -78,9 +82,23 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         // @reminder: next to do
         // @to-do: handle fees
 
+        // @to-do: update user fee index
+
         // user accounting (mint shares eqaul to liquidity minted)
         _mint(params.recipient, uint256(liquidity));
         emit Deposit(params.recipient, params.token0, params.token1);
+    }
+
+    function harvest(address pool) public {
+        // collect fees from UniswapV3Pool
+        (uint256 collected0, uint256 collected1) = _collectFromPool(pool);
+
+        // update the global fee index
+        // We use a large multiplier (like 1e18 or 1e36) to prevent rounding errors
+        if (totalSupply() > 0) {
+            globalFeeIndex0 += (collected0 * 1e18) / totalSupply();
+            globalFeeIndex1 += (collected1 * 1e18) / totalSupply();
+        }
     }
 
     // token0 might be weth, token1 be usdc but the fee tiers are different say 0.01%, 0.05%
@@ -96,6 +114,7 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
     }
 
     // internal
+
     function _getPool(address token0, address token1, uint24 fee) internal returns (address pool) {
         pool = FACTORY.getPool(token0, token1, fee);
     }
@@ -103,6 +122,18 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
     function _pullTokens(address token0, address token1, uint256 amount0, uint256 amount1) internal {
         TransferHelper.safeTransferFrom(token0, msg.sender, address(this), amount0);
         TransferHelper.safeTransferFrom(token1, msg.sender, address(this), amount1);
+    }
+
+    function _collectFromPool(address _pool) internal returns (uint256 amount0, uint256 amount1) {
+        // simplfy this get ticks
+        // @audit: these must the ticks used when providing liquidity
+        // we must track the last used ticks
+        // @to-do:
+        TickRange memory range = poolTickRange[_pool];
+
+        int24 _tickLower = range.tickLower;
+        int24 _tickUpper = range.tickUpper;
+        (amount0, amount1) = POOL.collect(address(this), _tickLower, _tickUpper, MAX_FEES, MAX_FEES);
     }
 }
 
