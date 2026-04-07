@@ -9,6 +9,11 @@ interface IDepositV2 {
     error InvalidAmount();
     error InvalidAddress();
 
+    struct TickRange {
+        int24 tickLower;
+        int24 tickUpper;
+    }
+
     struct DepositParams {
         address token0;
         address token1;
@@ -23,7 +28,7 @@ interface IDepositV2 {
     //     int24 tickUpper;
     //     uint128 liquidity;
     // }
-    
+
     // function deposit(address token) external;
     // function withdraw(address token) external;
     // function invest() external;

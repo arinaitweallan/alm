@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {TickMath} from "lib/v3-core/contracts/libraries/TickMath.sol";
+import {LiquidityAmounts} from "lib/v3-periphery/contracts/libraries/LiquidityAmounts.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3Factory} from "lib/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
@@ -22,6 +24,9 @@ contract DepositV2 is IDepositV2, Ownable {
     // allowed pair
     mapping(address => bool) internal allowedPool;
 
+    // tick range mapping
+    mapping(address => TickRange) internal poolTickRange;
+
     /// @notice user deposits a pair of allowed tokens to the contract to be used to provide UniswapV3 liquidity
     function depositTokens(DepositParams memory params) external {
         // verify user is depositing in the right pool
@@ -31,6 +36,23 @@ contract DepositV2 is IDepositV2, Ownable {
         // restrict zero amounts and address(0)
         require(params.amount0 != NULL || params.amount1 != NULL, InvalidAmount());
         require(params.recipient != address(0), InvalidAddress());
+
+        // determining the liquidity to mint for the tokens
+        // @to-do: means we need a current range of ticks to mint within
+        TickRange memory range = poolTickRange[_pool];
+
+        int24 _tickLower = range.tickLower;
+        int24 _tickUpper = range.tickUpper;
+
+        (uint160 sqrtRatioX96,,,,,,) = POOL.slot0();
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
+
+        uint128 liquidityToMint = LiquidityAmounts.getLiquidityForAmounts(
+            sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, params.amount0, params.amount1
+        );
+
+        // @to-do: before minting, ensure the current tick is in range of the tick bounds
 
         // user accounting
     }
