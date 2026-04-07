@@ -6,13 +6,16 @@ import {TickMath} from "lib/v3-core/contracts/libraries/TickMath.sol";
 import {LiquidityAmounts} from "lib/v3-periphery/contracts/libraries/LiquidityAmounts.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3Factory} from "lib/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import {IUniswapV3MintCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
+import {LiquidityManagement} from "lib/v3-periphery/contracts/base/LiquidityManagement.sol";
+
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 
 // internal imports
 import {IDepositV2} from "src/interfaces/IDepositV2.sol";
 
-contract DepositV2 is IDepositV2, ERC20, Ownable {
+contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
     IUniswapV3Pool public immutable POOL;
     IUniswapV3Factory public immutable FACTORY;
 
@@ -39,9 +42,6 @@ contract DepositV2 is IDepositV2, ERC20, Ownable {
         require(params.amount0 != NULL || params.amount1 != NULL, InvalidAmount());
         require(params.recipient != address(0), InvalidAddress());
 
-        // pull the tokens from the user
-        _pullTokens();
-
         // determining the liquidity to mint for the tokens
         // @to-do: means we need a current range of ticks to mint within
         TickRange memory range = poolTickRange[_pool];
@@ -49,23 +49,28 @@ contract DepositV2 is IDepositV2, ERC20, Ownable {
         int24 _tickLower = range.tickLower;
         int24 _tickUpper = range.tickUpper;
 
-        (uint160 sqrtRatioX96,,,,,,) = POOL.slot0();
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
-
-        uint128 liquidityToMint = LiquidityAmounts.getLiquidityForAmounts(
-            sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, params.amount0, params.amount1
-        );
-
         // @to-do: before minting, ensure the current tick is in range of the tick bounds
-        // require all amounts are used
-        // q what data should we pass here
-        (uint256 amount0, uint256 amount1) =
-            POOL.mint(params.recipient, _tickLower, _tickUpper, liquidityToMint, abi.encode(msg.sender));
-        require(amount0 == params.amount0 && amount1 == params.amount1, AmountsNotFullyUsed());
+
+        AddLiquidityParams memory addParams = AddLiquidityParams({
+            token0: params.token0,
+            token1: params.token1,
+            fee: params.fee,
+            recipient: address(this),
+            tickLower: _tickLower,
+            tickUpper: _tickUpper,
+            amount0Desired: params.amount0,
+            amount1Desired: params.amount1,
+            amount0Min: 0,
+            amount1Min: 0
+        });
+
+        (uint128 liquidity, uint256 amountUsed0, uint256 amountUsed1,) = addLiquidity(addParams);
+
+        // @to-do: handle slippage
+        // @to-do: handle fees
 
         // user accounting (mint shares eqaul to liquidity minted)
-        _mint(params.recipient, uint256(liquidityToMint));
+        _mint(params.recipient, uint256(liquidity));
         emit Deposit(params.recipient, params.token0, params.token1);
     }
 
@@ -87,9 +92,30 @@ contract DepositV2 is IDepositV2, ERC20, Ownable {
     }
 
     function _pullTokens(address token0, address token1, uint256 amount0, uint256 amount1) internal {
-        address from = msg.sender;
-        address to = address(this);
-        TransferHelper.safeTransferFrom(token0, from, to, amount0);
-        TransferHelper.safeTransferFrom(token1, from, to, amount1);
+        TransferHelper.safeTransferFrom(token0, msg.sender, address(this), amount0);
+        TransferHelper.safeTransferFrom(token1, msg.sender, address(this), amount1);
     }
 }
+
+// (uint160 sqrtRatioX96,,,,,,) = POOL.slot0();
+        // uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
+        // uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
+
+        // uint128 liquidityToMint = LiquidityAmounts.getLiquidityForAmounts(
+        //     sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, params.amount0, params.amount1
+        // );
+// require all amounts are used
+        // q what data should we pass here
+        // (uint256 amount0, uint256 amount1) =
+        //     POOL.mint(params.recipient, _tickLower, _tickUpper, liquidityToMint, abi.encode(msg.sender));
+        // require(amount0 == params.amount0 && amount1 == params.amount1, AmountsNotFullyUsed());
+
+        // @to-do: handle callback
+
+// refund unused tokens to the user
+        // if (params.amount0 > amountUsed0) {
+        //     TransferHelper.safeTransfer(params.token0, msg.sender, params.amount0 - amountUsed0);
+        // }
+        // if (params.amount1 > amountUsed1) {
+        //     TransferHelper.safeTransfer(params.token1, msg.sender, params.amount1 - amountUsed1);
+        // }
