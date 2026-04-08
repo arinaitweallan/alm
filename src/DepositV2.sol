@@ -80,6 +80,9 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         // @to-do: handle slippage
 
         // @reminder: next to do
+        // q how do i update these?
+        userFeeIndex0[params.recipient] += 
+        userFeeIndex0[params.recipient] += 
         // @to-do: handle fees
 
         // @to-do: update user fee index
