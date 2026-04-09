@@ -11,6 +11,7 @@ import {LiquidityManagement} from "lib/v3-periphery/contracts/base/LiquidityMana
 
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // internal imports
 import {IDepositV2} from "src/interfaces/IDepositV2.sol";
@@ -110,6 +111,23 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         if (totalSupply() > 0) {
             globalFeeIndex0 += (collected0 * 1e18) / totalSupply();
             globalFeeIndex1 += (collected1 * 1e18) / totalSupply();
+        }
+    }
+
+    function claimFees(address pool) external {
+        harvest(pool);
+        _updateUser(msg.sender);
+
+        uint256 amount0 = accruedFees0[msg.sender];
+        uint256 amount1 = accruedFees1[msg.sender];
+
+        if (amount0 > 0) {
+            accruedFees0[msg.sender] = 0;
+            IERC20(token0).transfer(msg.sender, amount0);
+        }
+        if (amount1 > 0) {
+            accruedFees1[msg.sender] = 0;
+            IERC20(token1).transfer(msg.sender, amount1);
         }
     }
 
