@@ -60,6 +60,7 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
 
         // harvest
         harvest(_pool);
+        _updateUser(params.recipient);
 
         // determining the liquidity to mint for the tokens
         // @to-do: means we need a current range of ticks to mint within
@@ -157,7 +158,7 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         earned1 = (shares * (globalFeeIndex1 - userFeeIndex1[user])) / 1e18;
     }
 
-    function _updateUserFees(address user) internal {
+    function _updateUser(address user) internal {
         // calculate what they earned since their last interaction
         (uint256 earned0, uint256 earned1) = _calculateEarned(user);
 
@@ -169,6 +170,8 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         userFeeIndex0[user] = globalFeeIndex0;
         userFeeIndex1[user] = globalFeeIndex1;
     }
+
+    function _addLiquidity() internal {}
 }
 
 // (uint160 sqrtRatioX96,,,,,,) = POOL.slot0();
