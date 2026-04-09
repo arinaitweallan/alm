@@ -139,6 +139,16 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         (amount0, amount1) = POOL.collect(address(this), _tickLower, _tickUpper, MAX_FEES, MAX_FEES);
     }
 
+    function _calculateEarned(address user) internal view returns (uint256 earned0, uint256 earned1) {
+    uint256 shares = balanceOf(user);
+    if (shares == 0) return (0, 0);
+
+    // Earnings = Shares * (Current Global - User's Last Snapshot)
+    // We divide by 1e18 because we multiplied by 1e18 in the harvest() function
+    earned0 = (shares * (globalFeeIndex0 - userFeeIndex0[user])) / 1e18;
+    earned1 = (shares * (globalFeeIndex1 - userFeeIndex1[user])) / 1e18;
+}
+
     function _updateUserFees(address user) internal {}
 }
 
