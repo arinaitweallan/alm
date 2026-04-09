@@ -138,6 +138,8 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
         int24 _tickUpper = range.tickUpper;
         (amount0, amount1) = POOL.collect(address(this), _tickLower, _tickUpper, MAX_FEES, MAX_FEES);
     }
+
+    function _updateUserFees(address user) internal {}
 }
 
 // (uint160 sqrtRatioX96,,,,,,) = POOL.slot0();
