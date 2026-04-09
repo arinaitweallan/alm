@@ -29,12 +29,20 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
     mapping(address => uint256) public userFeeIndex0;
     mapping(address => uint256) public userFeeIndex1;
 
+    mapping(address => uint256) public accruedFees0;
+    mapping(address => uint256) public accruedFees1;
+
     // allowed pair
     mapping(address => bool) internal allowedPool;
     // tick range mapping
     mapping(address => TickRange) internal poolTickRange;
 
-    constructor(IUniswapV3Pool _pool /*IUniswapV3Factory _factory*/) ERC20("ALM-SHARES", "ALMS") Ownable(msg.sender) {
+    constructor(
+        IUniswapV3Pool _pool /*IUniswapV3Factory _factory*/
+    )
+        ERC20("ALM-SHARES", "ALMS")
+        Ownable(msg.sender)
+    {
         POOL = _pool;
         // FACTORY = _factory;
         FACTORY = _pool.factory();
@@ -81,8 +89,8 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
 
         // @reminder: next to do
         // q how do i update these?
-        // userFeeIndex0[params.recipient] += 
-        // userFeeIndex0[params.recipient] += 
+        // userFeeIndex0[params.recipient] +=
+        // userFeeIndex0[params.recipient] +=
         // @to-do: handle fees
 
         // @to-do: update user fee index
@@ -140,16 +148,27 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
     }
 
     function _calculateEarned(address user) internal view returns (uint256 earned0, uint256 earned1) {
-    uint256 shares = balanceOf(user);
-    if (shares == 0) return (0, 0);
+        uint256 shares = balanceOf(user);
+        if (shares == 0) return (0, 0);
 
-    // Earnings = Shares * (Current Global - User's Last Snapshot)
-    // We divide by 1e18 because we multiplied by 1e18 in the harvest() function
-    earned0 = (shares * (globalFeeIndex0 - userFeeIndex0[user])) / 1e18;
-    earned1 = (shares * (globalFeeIndex1 - userFeeIndex1[user])) / 1e18;
-}
+        // earnings = shares * (current global - user's last snapshot)
+        // we divide by 1e18 because we multiplied by 1e18 in the harvest() function
+        earned0 = (shares * (globalFeeIndex0 - userFeeIndex0[user])) / 1e18;
+        earned1 = (shares * (globalFeeIndex1 - userFeeIndex1[user])) / 1e18;
+    }
 
-    function _updateUserFees(address user) internal {}
+    function _updateUserFees(address user) internal {
+        // calculate what they earned since their last interaction
+        (uint256 earned0, uint256 earned1) = _calculateEarned(user);
+
+        // add those earnings to a "pending" balance
+        accruedFees0[user] += earned0;
+        accruedFees1[user] += earned1;
+
+        // set their "meter" to the current global state
+        userFeeIndex0[user] = globalFeeIndex0;
+        userFeeIndex1[user] = globalFeeIndex1;
+    }
 }
 
 // (uint160 sqrtRatioX96,,,,,,) = POOL.slot0();
