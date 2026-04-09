@@ -31,13 +31,13 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
 
     // allowed pair
     mapping(address => bool) internal allowedPool;
-
     // tick range mapping
     mapping(address => TickRange) internal poolTickRange;
 
-    constructor(IUniswapV3Pool _pool, IUniswapV3Factory _factory) ERC20("ALM-SHARES", "ALMS") Ownable(msg.sender) {
+    constructor(IUniswapV3Pool _pool /*IUniswapV3Factory _factory*/) ERC20("ALM-SHARES", "ALMS") Ownable(msg.sender) {
         POOL = _pool;
-        FACTORY = _factory;
+        // FACTORY = _factory;
+        FACTORY = _pool.factory();
     }
 
     /// @notice user deposits a pair of allowed tokens to the contract to be used to provide UniswapV3 liquidity
@@ -81,8 +81,8 @@ contract DepositV2 is IDepositV2, ERC20, Ownable, LiquidityManagement {
 
         // @reminder: next to do
         // q how do i update these?
-        userFeeIndex0[params.recipient] += 
-        userFeeIndex0[params.recipient] += 
+        // userFeeIndex0[params.recipient] += 
+        // userFeeIndex0[params.recipient] += 
         // @to-do: handle fees
 
         // @to-do: update user fee index
